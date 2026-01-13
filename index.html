@@ -1,159 +1,207 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>分区小球弹射游戏</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 20px;
-            background-color: #f0f0f0;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
-
-        /* 计分板和提示 */
-        .score-board {
-            margin-bottom: 15px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .turn-tip {
-            margin-bottom: 10px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .win-tip {
-            margin-top: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #e63946;
-            display: none;
-        }
-
-        /* 主容器：适配手机宽度 */
-        .main-rect {
-            width: 90vw;
-            max-width: 330px;
-            height: 60vh;
-            min-height: 500px;
-            border: 3px solid #333;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .area {
-            flex: 1;
-            position: relative;
-        }
-        /* 1/4区白色背景，3区粉色背景 */
-        #area1 { background-color: #ffffff; }
-        #area2 { background-color: #4ecdc4; }
-        #area3 { background-color: #ffc0cb; } /* 粉色 */
-        #area4 { background-color: #ffffff; }
-
-        /* 小球基础样式 */
-        .ball {
-            border-radius: 50%;
-            border: 2px solid #333;
-            position: absolute;
-            cursor: grab;
-            user-select: none;
-            z-index: 10;
-        }
-
-        /* 小球尺寸 */
-        .ball.size-xs { width: 12px; height: 12px; } /* 小 */
-        .ball.size-sm { width: 18px; height: 18px; } /* 中 */
-        .ball.size-md { width: 24px; height: 24px; } /* 大 */
-        .ball.size-lg { width: 30px; height: 30px; } /* 特大 */
-
-        /* 小球颜色 */
-        .ball.blue { background-color: #4287f5; }
-        .ball.red { background-color: #e63946; }
-
-        /* 不可操作小球 */
-        .ball.disabled {
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分区小球弹射游戏 - 在线版</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+    display:flex; flex-direction:column; align-items:center;
+    padding-top:20px; background-color:#f0f0f0; overflow:hidden;
+    touch-action: manipulation;
+}
+.score-board { margin-bottom:15px; font-size:20px; font-weight:bold; color:#333; }
+.turn-tip { margin-bottom:10px; font-size:16px; color:#666; }
+.win-tip { margin-top:15px; font-size:18px; font-weight:bold; color:#e63946; display:none; }
+.main-rect { width:90vw; max-width:330px; height:60vh; min-height:500px;
+    border:3px solid #333; border-radius:8px; display:flex; flex-direction:column;
+    overflow:hidden; position:relative;
+}
+.area { flex:1; position:relative; }
+#area1 { background-color:#ffffff; }
+#area2 { background-color:#4ecdc4; }
+#area3 { background-color:#ffc0cb; }
+#area4 { background-color:#ffffff; }
+.ball { border-radius:50%; border:2px solid #333; position:absolute;
+    cursor:grab; user-select:none; z-index:10;
+}
+.ball.size-xs { width:12px; height:12px; }
+.ball.size-sm { width:18px; height:18px; }
+.ball.size-md { width:24px; height:24px; }
+.ball.size-lg { width:30px; height:30px; }
+.ball.blue { background-color:#4287f5; }
+.ball.red { background-color:#e63946; }
+.ball.disabled { cursor:not-allowed; opacity:0.6; }
+</style>
 </head>
 <body>
-    <div class="score-board">玩家1得分：<span id="score1">0</span> | 玩家2得分：<span id="score2">0</span></div>
-    <div class="turn-tip" id="turnTip">当前轮到：玩家1（操作区域1内小球）</div>
-    <div class="win-tip" id="winTip"></div>
+<div class="score-board">
+玩家1得分：<span id="score1">0</span> | 玩家2得分：<span id="score2">0</span>
+</div>
+<div class="turn-tip" id="turnTip">等待玩家加入...</div>
+<div class="win-tip" id="winTip"></div>
 
-    <div class="main-rect" id="mainRect">
-        <div class="area" id="area1"></div>
-        <div class="area" id="area2"></div>
-        <div class="area" id="area3"></div>
-        <div class="area" id="area4"></div>
-    </div>
+<div class="main-rect" id="mainRect">
+    <div class="area" id="area1"></div>
+    <div class="area" id="area2"></div>
+    <div class="area" id="area3"></div>
+    <div class="area" id="area4"></div>
+</div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script>
-        // Your Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyD2ip3Uy6ekSIq6YUfWh8-vm1t9NJf3KMo",
-            authDomain: "bingqiu-fb8c7.firebaseapp.com",
-            databaseURL: "https://bingqiu-fb8c7-default-rtdb.firebaseio.com",
-            projectId: "bingqiu-fb8c7",
-            storageBucket: "bingqiu-fb8c7.firebasestorage.app",
-            messagingSenderId: "44741898852",
-            appId: "1:44741898852:web:ecbd9519b84ed62e38e571",
-            measurementId: "G-5ZDPEZ193F"
-        };
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, update, push, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-    </script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD2ip3Uy6ekSIq6YUfWh8-vm1t9NJf3KMo",
+  authDomain: "bingqiu-fb8c7.firebaseapp.com",
+  databaseURL: "https://bingqiu-fb8c7-default-rtdb.firebaseio.com",
+  projectId: "bingqiu-fb8c7",
+  storageBucket: "bingqiu-fb8c7.appspot.com",
+  messagingSenderId: "44741898852",
+  appId: "1:44741898852:web:ecbd9519b84ed62e38e571",
+  measurementId: "G-5ZDPEZ193F"
+};
 
-    <script>
-        // --- Your game code starts here ---
-        const mainRect = document.getElementById('mainRect');
-        const area1 = document.getElementById('area1');
-        const area2 = document.getElementById('area2');
-        const area3 = document.getElementById('area3');
-        const area4 = document.getElementById('area4');
-        const allAreas = document.querySelectorAll('.area');
-        const score1El = document.getElementById('score1');
-        const score2El = document.getElementById('score2');
-        const turnTip = document.getElementById('turnTip');
-        const winTip = document.getElementById('winTip');
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-        const ballCount = 7;
-        const sizeOrder = ['size-xs', 'size-sm', 'size-md', 'size-lg', 'size-md', 'size-sm', 'size-xs'];
-        const centerOffsets = [-90, -60, -30, 0, 30, 60, 90];
-        let currentPlayer = 1;
-        let scores = { 1: 0, 2: 0 };
-        let balls = []; 
-        let gameOver = false; 
+const mainRect = document.getElementById('mainRect');
+const area1 = document.getElementById('area1');
+const area2 = document.getElementById('area2');
+const area3 = document.getElementById('area3');
+const area4 = document.getElementById('area4');
+const allAreas = document.querySelectorAll('.area');
+const score1El = document.getElementById('score1');
+const score2El = document.getElementById('score2');
+const turnTip = document.getElementById('turnTip');
+const winTip = document.getElementById('winTip');
 
-        // The rest of your Ball class and game code goes here...
-        // Keep all your existing JS logic (drag, move, score, etc.)
-        // This part is exactly your original code.
+const ballCount = 7;
+const sizeOrder = ['size-xs','size-sm','size-md','size-lg','size-md','size-sm','size-xs'];
+const centerOffsets = [-90,-60,-30,0,30,60,90];
 
-        // 页面加载后初始化
-        window.addEventListener('load', initBalls);
-    </script>
+let playerId = null; // 1 or 2
+let currentPlayer = 1;
+let scores = {1:0,2:0};
+let balls = [];
+let gameOver = false;
+
+// --- Player Assignment ---
+const playersRef = ref(db, 'players');
+onValue(playersRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    if(!playerId){
+        if(!data['1']) { playerId=1; set(ref(db,'players/1'), true); }
+        else if(!data['2']) { playerId=2; set(ref(db,'players/2'), true); }
+        else { playerId=0; turnTip.textContent="房间已满"; return; }
+    }
+    turnTip.textContent = `你是玩家${playerId}，等待另一位玩家加入...`;
+});
+
+// --- Game State in Firebase ---
+const gameRef = ref(db,'game');
+
+onValue(gameRef,(snapshot)=>{
+    const data = snapshot.val();
+    if(!data) return;
+    // Update scores
+    if(data.scores){
+        scores = data.scores;
+        score1El.textContent = scores[1];
+        score2El.textContent = scores[2];
+    }
+    // Update current player
+    if(data.currentPlayer) currentPlayer = data.currentPlayer;
+    turnTip.textContent = `当前轮到：玩家${currentPlayer}（操作区域${currentPlayer===1?1:4}内小球）`;
+    // Update balls
+    if(data.balls){
+        // Remove old balls
+        balls.forEach(b=>b.element.remove());
+        balls=[];
+        data.balls.forEach((b,index)=>{
+            const areaEl = b.area==='area1'?area1:b.area==='area4'?area4:b.area==='area2'?area2:area3;
+            const ballObj = new Ball(areaEl,index,b.color);
+            ballObj.x = b.x;
+            ballObj.y = b.y;
+            ballObj.updatePosition();
+            balls.push(ballObj);
+        });
+    }
+});
+
+// --- Ball Class ---
+class Ball{
+    constructor(belongArea,index,color){
+        this.belongArea=belongArea;
+        this.sizeClass=sizeOrder[index];
+        this.color=color || (belongArea===area1?'blue':'red');
+        this.x=0; this.y=0;
+        this.vx=0; this.vy=0;
+        this.isDragging=false;
+
+        this.element=document.createElement('div');
+        this.element.className=`ball ${this.sizeClass} ${this.color}`;
+        mainRect.appendChild(this.element);
+        // Center positions
+        const areaRect = belongArea.getBoundingClientRect();
+        const mainRectRect = mainRect.getBoundingClientRect();
+        const areaCenterX = areaRect.left+areaRect.width/2 - mainRectRect.left;
+        const areaCenterY = areaRect.top+areaRect.height/2 - mainRectRect.top;
+        this.x=areaCenterX + centerOffsets[index]-parseInt(getComputedStyle(this.element).width)/2;
+        this.y=areaCenterY - parseInt(getComputedStyle(this.element).height)/2;
+        this.updatePosition();
+
+        this.bindEvents();
+    }
+    updatePosition(){ this.element.style.left=this.x+'px'; this.element.style.top=this.y+'px'; }
+    bindEvents(){
+        this.element.addEventListener('mousedown',(e)=>this.startDrag(e.clientX,e.clientY));
+        this.element.addEventListener('touchstart',(e)=>{e.preventDefault(); const t=e.touches[0]; this.startDrag(t.clientX,t.clientY);});
+        document.addEventListener('mousemove',(e)=>{if(this.isDragging)this.moveDrag(e.clientX,e.clientY);});
+        document.addEventListener('touchmove',(e)=>{if(this.isDragging){e.preventDefault(); const t=e.touches[0]; this.moveDrag(t.clientX,t.clientY);}});
+        document.addEventListener('mouseup',()=>this.endDrag());
+        document.addEventListener('touchend',()=>this.endDrag());
+    }
+    startDrag(clientX,clientY){
+        if(gameOver) return;
+        if(playerId!==currentPlayer) return;
+        this.isDragging=true;
+        const ballRect=this.element.getBoundingClientRect();
+        const mainRectRect=mainRect.getBoundingClientRect();
+        this.offsetX=clientX-(ballRect.left-mainRectRect.left);
+        this.offsetY=clientY-(ballRect.top-mainRectRect.top);
+    }
+    moveDrag(clientX,clientY){
+        const mainRectRect=mainRect.getBoundingClientRect();
+        this.x=clientX-this.offsetX;
+        this.y=clientY-this.offsetY;
+        this.updatePosition();
+    }
+    endDrag(){
+        if(!this.isDragging) return;
+        this.isDragging=false;
+        // Push updated position to Firebase
+        update(gameRef,{balls:balls.map(b=>({x:b.x,y:b.y,area:b.belongArea.id,color:b.color}))});
+        // Switch player
+        const nextPlayer = currentPlayer===1?2:1;
+        update(gameRef,{currentPlayer:nextPlayer});
+    }
+}
+
+// --- Initialize Game ---
+function initGame(){
+    const initialBalls=[];
+    for(let i=0;i<ballCount;i++){
+        initialBalls.push({area:'area1',x:0,y:0,color:'blue'});
+        initialBalls.push({area:'area4',x:0,y:0,color:'red'});
+    }
+    set(gameRef,{balls:initialBalls,currentPlayer:1,scores:{1:0,2:0}});
+}
+window.addEventListener('load',()=>{ if(playerId) initGame(); });
+
+</script>
 </body>
 </html>
